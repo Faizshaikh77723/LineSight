@@ -1,0 +1,4 @@
+repository "FSOC_PAT_Prototype/FSOC_PAT_Prototype@13469932863013@cloud"
+  path "/"
+    br "/main"
+    co "/main"

@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>FSOC Pointing, Acquisition & Tracking Simulator</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #111;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        #header {
+            width: 100%;
+            padding: 12px 18px;
+            background: #181818;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        #connectionStatus {
+            padding: 7px 12px;
+            border-radius: 6px;
+            background: #333;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        #mainLayout {
+            display: flex;
+            width: 100%;
+            min-height: calc(100vh - 55px);
+        }
+
+        #unityArea {
+            flex: 1;
+            min-width: 0;
+            padding: 10px;
+        }
+
+        #unityContainer {
+            width: 100%;
+            height: calc(100vh - 75px);
+            background: #000;
+            position: relative;
+        }
+
+        #unityCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #000;
+        }
+
+        #controlPanel {
+            width: 360px;
+            height: calc(100vh - 55px);
+            overflow-y: auto;
+            background: #171717;
+            border-left: 1px solid #333;
+            padding: 15px;
+        }
+
+        .section {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+
+        .section h2 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+
+        .control {
+            margin-bottom: 10px;
+        }
+
+        .control label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #ddd;
+        }
+
+        .control input[type="number"],
+        .control input[type="range"] {
+            width: 100%;
+        }
+
+        .control input[type="number"] {
+            padding: 6px;
+            background: #111;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+
+        .rangeValue {
+            font-size: 11px;
+            color: #aaa;
+            text-align: right;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 5px;
+            padding: 7px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #444;
+        }
+
+        .toggleRow {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .toggleRow input {
+            width: auto;
+        }
+
+        #commandStatus {
+            padding: 10px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 5px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .telemetry {
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            background: #111;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .small {
+            font-size: 11px;
+            color: #aaa;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div id="header">
+
+    <h1>
+        FSOC Pointing, Acquisition & Tracking Simulator
+    </h1>
+
+    <div id="connectionStatus">
+        CONNECTING TO UNITY...
+    </div>
+
+</div>
+
+
+<div id="mainLayout">
+
+    <!-- ===================================================== -->
+    <!-- UNITY SIMULATION -->
+    <!-- ===================================================== -->
+
+    <div id="unityArea">
+
+        <div id="unityContainer">
+
+            <canvas id="unityCanvas"
+                    tabindex="-1">
+            </canvas>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- BROWSER CONTROL PANEL -->
+    <!-- ===================================================== -->
+
+    <div id="controlPanel">
+
+
+        <!-- ================================================= -->
+        <!-- SATELLITE -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>Satellite Target</h2>
+
+            <div class="control">
+                <label>Speed (m/s)</label>
+                <input id="satelliteSpeed"
+                       type="number"
+                       value="2"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetSatelliteSpeed', 'satelliteSpeed')">
+            </div>
+
+            <div class="control">
+                <label>Position X (m)</label>
+                <input id="positionX"
+                       type="number"
+                       value="0"
+                       step="1"
+                       onchange="sendNumber('BrowserSetSatellitePositionX', 'positionX')">
+            </div>
+
+            <div class="control">
+                <label>Position Y (m)</label>
+                <input id="positionY"
+                       type="number"
+                       value="0"
+                       step="1"
+                       onchange="sendNumber('BrowserSetSatellitePositionY', 'positionY')">
+            </div>
+
+            <div class="control">
+                <label>Position Z (m)</label>
+                <input id="positionZ"
+                       type="number"
+                       value="30"
+                       step="1"
+                       onchange="sendNumber('BrowserSetSatellitePositionZ', 'positionZ')">
+            </div>
+
+            <div class="toggleRow">
+                <input id="lateralMotion"
+                       type="checkbox"
+                       checked
+                       onchange="sendBool('BrowserSetLateralMotion', 'lateralMotion')">
+
+                <label for="lateralMotion">
+                    Lateral Motion
+                </label>
+            </div>
+
+            <div class="control">
+                <label>Lateral Amplitude (m)</label>
+                <input id="lateralAmplitude"
+                       type="number"
+                       value="2"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetLateralAmplitude', 'lateralAmplitude')">
+            </div>
+
+            <div class="control">
+                <label>Lateral Frequency (Hz)</label>
+                <input id="lateralFrequency"
+                       type="number"
+                       value="0.5"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetLateralFrequency', 'lateralFrequency')">
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- DISTURBANCES -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>Disturbances</h2>
+
+            <div class="toggleRow">
+                <input id="disturbancesEnabled"
+                       type="checkbox"
+                       checked
+                       onchange="sendBool('BrowserSetDisturbancesEnabled', 'disturbancesEnabled')">
+
+                <label for="disturbancesEnabled">
+                    Master Disturbances
+                </label>
+            </div>
+
+
+            <div class="toggleRow">
+                <input id="measurementNoiseEnabled"
+                       type="checkbox"
+                       checked
+                       onchange="sendBool('BrowserSetMeasurementNoiseEnabled', 'measurementNoiseEnabled')">
+
+                <label for="measurementNoiseEnabled">
+                    Measurement Noise
+                </label>
+            </div>
+
+            <div class="control">
+                <label>Measurement Noise Amplitude</label>
+
+                <input id="measurementNoiseAmplitude"
+                       type="range"
+                       min="0"
+                       max="0.05"
+                       step="0.001"
+                       value="0.01"
+                       oninput="updateValue('measurementNoiseAmplitudeValue', this.value)"
+                       onchange="sendNumber('BrowserSetMeasurementNoiseAmplitude', 'measurementNoiseAmplitude')">
+
+                <div id="measurementNoiseAmplitudeValue"
+                     class="rangeValue">
+                    0.01
+                </div>
+            </div>
+
+
+            <div class="toggleRow">
+                <input id="angularJitterEnabled"
+                       type="checkbox"
+                       checked
+                       onchange="sendBool('BrowserSetAngularJitterEnabled', 'angularJitterEnabled')">
+
+                <label for="angularJitterEnabled">
+                    Angular Jitter
+                </label>
+            </div>
+
+            <div class="control">
+                <label>Jitter Amplitude (degrees)</label>
+
+                <input id="angularJitterAmplitude"
+                       type="range"
+                       min="0"
+                       max="2"
+                       step="0.01"
+                       value="0.15"
+                       oninput="updateValue('angularJitterAmplitudeValue', this.value)"
+                       onchange="sendNumber('BrowserSetAngularJitterAmplitude', 'angularJitterAmplitude')">
+
+                <div id="angularJitterAmplitudeValue"
+                     class="rangeValue">
+                    0.15
+                </div>
+            </div>
+
+            <div class="control">
+                <label>Jitter Frequency (Hz)</label>
+
+                <input id="angularJitterFrequency"
+                       type="number"
+                       value="8"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetAngularJitterFrequency', 'angularJitterFrequency')">
+            </div>
+
+
+            <div class="toggleRow">
+                <input id="dropoutEnabled"
+                       type="checkbox"
+                       checked
+                       onchange="sendBool('BrowserSetDropoutEnabled', 'dropoutEnabled')">
+
+                <label for="dropoutEnabled">
+                    Detection Dropout
+                </label>
+            </div>
+
+            <div class="control">
+                <label>Dropout Probability</label>
+
+                <input id="dropoutProbability"
+                       type="range"
+                       min="0"
+                       max="0.2"
+                       step="0.001"
+                       value="0.002"
+                       oninput="updateValue('dropoutProbabilityValue', this.value)"
+                       onchange="sendNumber('BrowserSetDropoutProbability', 'dropoutProbability')">
+
+                <div id="dropoutProbabilityValue"
+                     class="rangeValue">
+                    0.002
+                </div>
+            </div>
+
+
+            <div class="toggleRow">
+                <input id="vibrationEnabled"
+                       type="checkbox"
+                       checked
+                       onchange="sendBool('BrowserSetVibrationEnabled', 'vibrationEnabled')">
+
+                <label for="vibrationEnabled">
+                    Vibration
+                </label>
+            </div>
+
+            <div class="control">
+                <label>Vibration Amplitude (m)</label>
+
+                <input id="vibrationAmplitude"
+                       type="number"
+                       value="0.01"
+                       step="0.001"
+                       onchange="sendNumber('BrowserSetVibrationAmplitude', 'vibrationAmplitude')">
+            </div>
+
+            <div class="control">
+                <label>Vibration Frequency (Hz)</label>
+
+                <input id="vibrationFrequency"
+                       type="number"
+                       value="12"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetVibrationFrequency', 'vibrationFrequency')">
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- PTZ -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>PTZ Camera</h2>
+
+            <div class="control">
+                <label>Pan Angle (degrees)</label>
+
+                <input id="pan"
+                       type="number"
+                       value="0"
+                       step="1"
+                       onchange="sendNumber('BrowserSetPan', 'pan')">
+            </div>
+
+            <div class="control">
+                <label>Tilt Angle (degrees)</label>
+
+                <input id="tilt"
+                       type="number"
+                       value="0"
+                       step="1"
+                       onchange="sendNumber('BrowserSetTilt', 'tilt')">
+            </div>
+
+            <div class="small">
+                PTZ angle commands are applied directly to the
+                Unity PTZ controller.
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- PAT -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>PAT Parameters</h2>
+
+            <div class="control">
+                <label>Acquisition Threshold (degrees)</label>
+
+                <input id="acquisitionThreshold"
+                       type="number"
+                       value="5"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetAcquisitionThreshold', 'acquisitionThreshold')">
+            </div>
+
+            <div class="control">
+                <label>Tracking Threshold (degrees)</label>
+
+                <input id="trackingThreshold"
+                       type="number"
+                       value="2"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetTrackingThreshold', 'trackingThreshold')">
+            </div>
+
+            <div class="control">
+                <label>Lock Threshold (degrees)</label>
+
+                <input id="lockThreshold"
+                       type="number"
+                       value="1"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetLockThreshold', 'lockThreshold')">
+            </div>
+
+            <div class="control">
+                <label>Required Lock Time (seconds)</label>
+
+                <input id="requiredLockTime"
+                       type="number"
+                       value="1"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetRequiredLockTime', 'requiredLockTime')">
+            </div>
+
+            <div class="control">
+                <label>Minimum Detection Confidence</label>
+
+                <input id="minimumConfidence"
+                       type="range"
+                       min="0"
+                       max="1"
+                       step="0.01"
+                       value="0.5"
+                       oninput="updateValue('minimumConfidenceValue', this.value)"
+                       onchange="sendNumber('BrowserSetMinimumConfidence', 'minimumConfidence')">
+
+                <div id="minimumConfidenceValue"
+                     class="rangeValue">
+                    0.50
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- KALMAN -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>Kalman Filter</h2>
+
+            <div class="control">
+                <label>Process Noise</label>
+
+                <input id="kalmanProcessNoise"
+                       type="number"
+                       value="0.01"
+                       step="0.001"
+                       onchange="sendNumber('BrowserSetKalmanProcessNoise', 'kalmanProcessNoise')">
+            </div>
+
+            <div class="control">
+                <label>Measurement Noise</label>
+
+                <input id="kalmanMeasurementNoise"
+                       type="number"
+                       value="0.05"
+                       step="0.001"
+                       onchange="sendNumber('BrowserSetKalmanMeasurementNoise', 'kalmanMeasurementNoise')">
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- FSOC -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>FSOC Channel</h2>
+
+            <div class="control">
+                <label>Transmitted Power (W)</label>
+
+                <input id="transmittedPower"
+                       type="number"
+                       value="1"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetTransmittedPower', 'transmittedPower')">
+            </div>
+
+            <div class="control">
+                <label>Beam Divergence (rad)</label>
+
+                <input id="beamDivergence"
+                       type="number"
+                       value="0.001"
+                       step="0.0001"
+                       onchange="sendNumber('BrowserSetBeamDivergence', 'beamDivergence')">
+            </div>
+
+            <div class="control">
+                <label>Receiver Diameter (m)</label>
+
+                <input id="receiverDiameter"
+                       type="number"
+                       value="0.10"
+                       step="0.01"
+                       onchange="sendNumber('BrowserSetReceiverDiameter', 'receiverDiameter')">
+            </div>
+
+            <div class="control">
+                <label>Atmospheric Attenuation (dB/km)</label>
+
+                <input id="atmosphericAttenuation"
+                       type="number"
+                       value="0.2"
+                       step="0.01"
+                       onchange="sendNumber('BrowserSetAtmosphericAttenuation', 'atmosphericAttenuation')">
+            </div>
+
+            <div class="control">
+                <label>Turbulence Strength</label>
+
+                <input id="turbulenceStrength"
+                       type="range"
+                       min="0"
+                       max="1"
+                       step="0.01"
+                       value="0.1"
+                       oninput="updateValue('turbulenceStrengthValue', this.value)"
+                       onchange="sendNumber('BrowserSetTurbulenceStrength', 'turbulenceStrength')">
+
+                <div id="turbulenceStrengthValue"
+                     class="rangeValue">
+                    0.10
+                </div>
+            </div>
+
+            <div class="control">
+                <label>Maximum Pointing Error (degrees)</label>
+
+                <input id="maximumPointingError"
+                       type="number"
+                       value="5"
+                       step="0.1"
+                       onchange="sendNumber('BrowserSetMaximumPointingError', 'maximumPointingError')">
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- COMMAND STATUS -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>Browser ↔ Unity</h2>
+
+            <div id="commandStatus">
+
+                Waiting for Unity...
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- TELEMETRY PLACEHOLDER -->
+        <!-- ================================================= -->
+
+        <div class="section">
+
+            <h2>Telemetry</h2>
+
+            <div class="telemetry">
+
+                PAT State:
+                <span id="telemetryPAT">
+                    --
+                </span>
+                <br>
+
+                Detection:
+                <span id="telemetryDetection">
+                    --
+                </span>
+                <br>
+
+                Pointing Error:
+                <span id="telemetryError">
+                    --
+                </span>
+                <br>
+
+                Link Quality:
+                <span id="telemetryLink">
+                    --
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- UNITY WEBGL LOADER -->
+<!-- ========================================================= -->
+
+<script>
+
+    var buildUrl = "Build";
+
+    var loaderUrl =
+        buildUrl + "/Webgl.loader.js";
+
+    var config = {
+
+        arguments: [],
+
+        dataUrl:
+            buildUrl + "/Webgl.data.gz",
+
+        frameworkUrl:
+            buildUrl + "/Webgl.framework.js.gz",
+
+        codeUrl:
+            buildUrl + "/Webgl.wasm.gz",
+
+        streamingAssetsUrl:
+            "StreamingAssets",
+
+        companyName:
+            "DefaultCompany",
+
+        productName:
+            "FSOC_PAT_Prototype",
+
+        productVersion:
+            "0.1"
+
+    };
+
+
+    var canvas =
+        document.querySelector("#unityCanvas");
+
+
+    var script =
+        document.createElement("script");
+
+
+    script.src = loaderUrl;
+
+
+    script.onload = function () {
+
+        createUnityInstance(
+            canvas,
+            config,
+            function (progress) {
+
+                document.getElementById(
+                    "connectionStatus"
+                ).innerText =
+                    "LOADING UNITY " +
+                    Math.round(progress * 100) +
+                    "%";
+
+            }
+
+        ).then(function (unityInstance) {
+
+            window.unityInstance =
+                unityInstance;
+
+            document.getElementById(
+                "connectionStatus"
+            ).innerText =
+                "CONNECTED TO UNITY";
+
+            document.getElementById(
+                "commandStatus"
+            ).innerText =
+                "Browser → Unity: CONNECTED";
+
+        }).catch(function (message) {
+
+            console.error(message);
+
+            document.getElementById(
+                "connectionStatus"
+            ).innerText =
+                "UNITY LOAD ERROR";
+
+            document.getElementById(
+                "commandStatus"
+            ).innerText =
+                message;
+
+        });
+
+    };
+
+
+    script.onerror = function () {
+
+        document.getElementById(
+            "connectionStatus"
+        ).innerText =
+            "UNITY LOADER ERROR";
+
+        document.getElementById(
+            "commandStatus"
+        ).innerText =
+            "Could not load " + loaderUrl;
+
+        console.error(
+            "Could not load Unity loader: " +
+            loaderUrl
+        );
+
+    };
+
+
+    document.body.appendChild(script);
+
+</script>
+
+
+<!-- ========================================================= -->
+<!-- BROWSER CONTROL FUNCTIONS -->
+<!-- ========================================================= -->
+
+<script>
+
+    function updateValue(elementId, value) {
+
+        var element =
+            document.getElementById(elementId);
+
+        if (element) {
+
+            var number =
+                parseFloat(value);
+
+            if (!isNaN(number)) {
+
+                element.innerText =
+                    number.toFixed(3);
+
+            } else {
+
+                element.innerText =
+                    value;
+
+            }
+
+        }
+
+    }
+
+
+    function sendNumber(methodName, inputId) {
+
+        var input =
+            document.getElementById(inputId);
+
+        if (!input)
+            return;
+
+        var value =
+            input.value;
+
+        sendToUnity(
+            methodName,
+            value
+        );
+
+    }
+
+
+    function sendBool(methodName, inputId) {
+
+        var input =
+            document.getElementById(inputId);
+
+        if (!input)
+            return;
+
+        var value =
+            input.checked ? "true" : "false";
+
+        sendToUnity(
+            methodName,
+            value
+        );
+
+    }
+
+
+    function sendToUnity(methodName, value) {
+
+        if (
+            typeof window.unityInstance ===
+            "undefined"
+        ) {
+
+            document.getElementById(
+                "commandStatus"
+            ).innerText =
+                "Unity is not connected yet.";
+
+            console.warn(
+                "Unity not ready:",
+                methodName,
+                value
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            window.unityInstance.SendMessage(
+                "SimulationManager",
+                methodName,
+                String(value)
+            );
+
+
+            document.getElementById(
+                "commandStatus"
+            ).innerText =
+                "Browser → Unity: " +
+                methodName +
+                " = " +
+                value;
+
+
+            console.log(
+                "Browser → Unity:",
+                methodName,
+                value
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "SendMessage error:",
+                error
+            );
+
+            document.getElementById(
+                "commandStatus"
+            ).innerText =
+                "Command error: " +
+                error.message;
+
+        }
+
+    }
+
+</script>
+
+
+</body>
+</html>
