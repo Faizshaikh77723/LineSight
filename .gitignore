@@ -45,5 +45,3 @@ Builds/
 __pycache__/
 *.pyc
 
-# Generated WebGL build
-FSOC_Web/Build/
