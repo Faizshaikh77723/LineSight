@@ -27,30 +27,70 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Verify WebGL files
+      - name: Verify repository WebGL files
+        shell: bash
         run: |
-          echo "Checking WebGL loader..."
-          echo "File size:"
-          wc -c FSOC_web/Build/Webgl.loader.js
+          set -e
+
+          echo "=== WebGL Build Directory ==="
+          ls -lah FSOC_web/Build/
+
           echo ""
-          echo "First 3 lines:"
-          head -n 3 FSOC_web/Build/Webgl.loader.js
+          echo "=== Checking required files ==="
+
+          test -f FSOC_web/index.html
+          test -f FSOC_web/Build/Webgl.data
+          test -f FSOC_web/Build/Webgl.framework.js
+          test -f FSOC_web/Build/Webgl.loader.js
+          test -f FSOC_web/Build/Webgl.wasm
+
+          echo "All required files exist."
+
           echo ""
-          echo "Checking for Git LFS pointer..."
-          if grep -q "version https://git-lfs.github.com/spec/v1" FSOC_web/Build/Webgl.loader.js; then
-            echo "ERROR: Webgl.loader.js is still an LFS pointer!"
-            exit 1
-          else
-            echo "OK: Webgl.loader.js is a real JavaScript file."
-          fi
+          echo "=== File sizes ==="
+
+          wc -c \
+            FSOC_web/Build/Webgl.data \
+            FSOC_web/Build/Webgl.framework.js \
+            FSOC_web/Build/Webgl.loader.js \
+            FSOC_web/Build/Webgl.wasm
+
+          echo ""
+          echo "=== Checking LFS pointers ==="
+
+          for file in FSOC_web/Build/*; do
+            if grep -q "version https://git-lfs.github.com/spec/v1" "$file" 2>/dev/null; then
+              echo "ERROR: LFS pointer detected: $file"
+              exit 1
+            fi
+          done
+
+          echo "No LFS pointers detected."
+
+      - name: Verify index paths
+        shell: bash
+        run: |
+          set -e
+
+          echo "=== Build URLs in index.html ==="
+          grep -nE "dataUrl|frameworkUrl|codeUrl" FSOC_web/index.html
+
+          echo ""
+          echo "=== Checking that index references uncompressed files ==="
+
+          grep -q 'Webgl.data"' FSOC_web/index.html
+          grep -q 'Webgl.framework.js"' FSOC_web/index.html
+          grep -q 'Webgl.wasm"' FSOC_web/index.html
+
+          echo "index.html paths OK."
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload FSOC WebGL site
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: './FSOC_web'
+          path: './FSOC_web/'
 
       - name: Deploy to GitHub Pages
         id: deployment
